@@ -12,8 +12,9 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2023/06/28.
 //
 
-#include "common/value.h"
 
+#include <cctype>
+#include "common/value.h"
 #include "common/lang/comparator.h"
 #include "common/lang/exception.h"
 #include "common/lang/sstream.h"
@@ -128,6 +129,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATE: {
+      value_.bool_value_ = *(int *)data != 0;
+      length_            = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -141,6 +146,17 @@ void Value::set_int(int val)
   value_.int_value_ = val;
   length_           = sizeof(val);
 }
+
+
+void Value::set_date(int val)
+{
+  reset();
+  attr_type_        = AttrType::DATE;
+  value_.int_value_ = val;
+  length_           = sizeof(val);
+}
+
+
 
 void Value::set_float(float val)
 {
@@ -205,6 +221,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case AttrType::DATE: {
+      set_date(value.get_int());
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -348,4 +367,103 @@ bool Value::get_boolean() const
     }
   }
   return false;
+}
+
+
+
+
+
+
+
+
+
+
+// 辅助函数：检查日期合法性
+bool Value::is_valid_date(int year, int month, int day) {
+    // 检查年份范围（根据常见需求，这里设为合理的范围）
+    // if (year < 1900 || year > 2100) {
+    //     return false;
+    // }
+    
+    // 检查月份范围
+    if (month < 1 || month > 12) {
+        return false;
+    }
+    
+    // 每月的天数
+    int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    
+    // 处理闰年：能被4整除但不能被100整除，或者能被400整除
+    bool is_leap_year = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    
+    // 闰年2月有29天
+    if (is_leap_year && month == 2) {
+        if (day < 1 || day > 29) {
+            return false;
+        }
+    } else {
+        if (day < 1 || day > days_in_month[month - 1]) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// 主函数：字符串转日期
+bool Value::str_to_date(const char *str, int length, int &year, int &month, int &day) {
+    // 检查输入参数
+    if (str == nullptr || length <= 0) {
+        return false;
+    }
+    
+    // 解析状态：0-解析年份，1-解析月份，2-解析日期
+    int state = 0;
+    int current_value = 0;
+    int value_count = 0;
+    
+    year = month = day = 0;
+    
+    for (int i = 0; i < length; i++) {
+        char c = str[i];
+        
+        if (std::isdigit(c)) {
+            // 数字字符，累加到当前值
+            current_value = current_value * 10 + (c - '0');
+        } else if (c == '-') {
+            // 分隔符，保存当前值并重置
+            if (state == 0) {
+                year = current_value;
+                state = 1;
+            } else if (state == 1) {
+                month = current_value;
+                state = 2;
+            } else {
+                // 不应该有第三个分隔符
+                return false;
+            }
+            current_value = 0;
+            value_count++;
+        } else {
+            // 非法字符
+            return false;
+        }
+    }
+    
+    // 处理最后一个数值（日期）
+    if (state == 2) {
+        day = current_value;
+        value_count++;
+    } else {
+        // 格式不正确，没有足够的组成部分
+        return false;
+    }
+    
+    // 检查是否解析出了三个部分
+    if (value_count != 3) {
+        return false;
+    }
+    
+    // 使用辅助函数检查日期合法性
+    return is_valid_date(year, month, day);
 }

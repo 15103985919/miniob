@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
 #include "common/type/string_t.h"
-
+#include "common/type/date_type.h"
 /**
  * @brief 属性的值
  * @ingroup DataType
@@ -36,6 +36,7 @@ public:
   friend class BooleanType;
   friend class CharType;
   friend class VectorType;
+  friend class DateType;
 
   Value() = default;
 
@@ -119,6 +120,10 @@ public:
   void set_string(const char *s, int len = 0);
   void set_empty_string(int len);
   void set_string_from_other(const Value &other);
+  void set_date(int val);
+  
+  static bool is_valid_date(int year, int month, int day);
+  static bool str_to_date(const char *str,int length,int &year,int &month,int &day);
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;
